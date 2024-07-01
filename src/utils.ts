@@ -134,21 +134,34 @@ export function sanitizeSearchParams(
         string,
         string | number | boolean | string[] | number[] | boolean[] | undefined
       >
-    | object
+    | object,
+  { csv = false }: { csv?: boolean } = {}
 ): URLSearchParams {
-  return new URLSearchParams(
-    Object.entries(searchParams).flatMap(([key, value]) => {
-      if (key === undefined || value === undefined) {
-        return []
-      }
+  const entries = Object.entries(searchParams).flatMap(([key, value]) => {
+    if (key === undefined || value === undefined) {
+      return []
+    }
 
-      if (Array.isArray(value)) {
-        return value.map((v) => [key, String(v)])
-      }
+    if (Array.isArray(value)) {
+      return value.map((v) => [key, String(v)])
+    }
 
-      return [[key, String(value)]]
-    }) as [string, string][]
+    return [[key, String(value)]]
+  }) as [string, string][]
+
+  if (!csv) {
+    return new URLSearchParams(entries)
+  }
+
+  const csvEntries = entries.reduce(
+    (acc, [key, value]) => ({
+      ...acc,
+      [key]: acc[key] ? `${acc[key]},${value}` : value
+    }),
+    {} as any
   )
+
+  return new URLSearchParams(csvEntries)
 }
 
 /**
@@ -182,4 +195,16 @@ export function hashObject(
   options?: HashObjectOptions
 ): string {
   return hashObjectImpl(object, { algorithm: 'sha256', ...options })
+}
+
+export function isAIFunction(obj: any): obj is types.AIFunction {
+  if (!obj) return false
+  if (typeof obj !== 'function') return false
+  if (!obj.inputSchema) return false
+  if (!obj.parseInput) return false
+  if (!obj.spec) return false
+  if (!obj.impl) return false
+  if (!obj.spec.name || typeof obj.spec.name !== 'string') return false
+
+  return true
 }
